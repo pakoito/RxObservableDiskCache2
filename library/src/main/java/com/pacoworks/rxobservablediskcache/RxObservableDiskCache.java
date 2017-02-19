@@ -18,12 +18,16 @@ package com.pacoworks.rxobservablediskcache;
 
 import android.content.Context;
 
-import com.pacoworks.rxpaper.RxPaperBook;
+import com.pacoworks.rxpaper2.RxPaperBook;
 
-import rx.Completable;
-import rx.Observable;
-import rx.Single;
-import rx.functions.Func1;
+import java.util.Arrays;
+
+import io.reactivex.Completable;
+import io.reactivex.Observable;
+import io.reactivex.Single;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
+
 
 /**
  * Static methods to add disk caching behaviour to {@link Single} objects.
@@ -40,12 +44,12 @@ public class RxObservableDiskCache<V, P> {
 
     private final RxPaperBook book;
 
-    private final Func1<V, P> policyCreator;
+    private final Function<V, P> policyCreator;
 
-    private final Func1<P, Boolean> policyValidator;
+    private final Predicate<P> policyValidator;
 
-    RxObservableDiskCache(RxPaperBook book, Func1<V, P> policyCreator,
-            Func1<P, Boolean> policyValidator) {
+    RxObservableDiskCache(RxPaperBook book, Function<V, P> policyCreator,
+            Predicate<P> policyValidator) {
         this.book = book;
         this.policyValidator = policyValidator;
         this.policyCreator = policyCreator;
@@ -60,7 +64,7 @@ public class RxObservableDiskCache<V, P> {
      * @param policyValidator lazy method to validate a Policy object
      */
     public static <V, P> RxObservableDiskCache<V, P> create(
-            RxPaperBook book, Func1<V, P> policyCreator, Func1<P, Boolean> policyValidator) {
+            RxPaperBook book, Function<V, P> policyCreator, Predicate<P> policyValidator) {
         return new RxObservableDiskCache<>(book, policyCreator, policyValidator);
     }
 
@@ -84,7 +88,7 @@ public class RxObservableDiskCache<V, P> {
      *         executing single
      */
     public static <V, P> Observable<Cached<V, P>> transform(
-            Single<V> single, String key, Func1<V, P> policyCreator, Func1<P, Boolean> policyValidator) {
+            Single<V> single, String key, Function<V, P> policyCreator, Predicate<P> policyValidator) {
         return transform(single, key, RxPaperBook.with(BuildConfig.APPLICATION_ID), policyCreator,
                 policyValidator);
     }
@@ -109,23 +113,23 @@ public class RxObservableDiskCache<V, P> {
      */
     public static <V, P> Observable<Cached<V, P>> transform(
             final Single<V> single, final String key, final RxPaperBook paperBook,
-            final Func1<V, P> policyCreator, final Func1<P, Boolean> policyValidator) {
+            final Function<V, P> policyCreator, final Predicate<P> policyValidator) {
         return Observable
                 /* Errors require being delayed so the cached subscription is completed even if the remote one fails */
-                .concatDelayError(
+                .concatDelayError(Arrays.asList(
                         RxObservableDiskCache.<V, P>requestCachedValue(key, paperBook, policyValidator),
-                        RxObservableDiskCache.<V, P>requestFreshValue(single, key, paperBook, policyCreator));
+                        RxObservableDiskCache.<V, P>requestFreshValue(single, key, paperBook, policyCreator)));
     }
 
     private static <V, P> Observable<Cached<V, P>> requestCachedValue(
-            final String key, final RxPaperBook cache, Func1<P, Boolean> policyValidator) {
+            final String key, final RxPaperBook cache, Predicate<P> policyValidator) {
         return cache
                 .<P> read(composePolicyKey(key))
                 .toObservable()
                 .filter(policyValidator)
                 .switchIfEmpty(
                         RxObservableDiskCache.<P> deleteValueAndPolicy(key, cache)
-                                .doOnCompleted(Logging.logCacheInvalid(key)))
+                                .doOnComplete(Logging.logCacheInvalid(key)))
                 .flatMap(RxObservableDiskCache.<V, P> readValue(key, cache))
                 .doOnNext(Logging.<V, P> logCacheHit(key))
                 .doOnError(Logging.<V, P> logCacheMiss(key))
@@ -133,15 +137,15 @@ public class RxObservableDiskCache<V, P> {
     }
 
     private static <P> Observable<P> deleteValueAndPolicy(String key, RxPaperBook cache) {
-        return Completable.mergeDelayError(cache.delete(key), cache.delete(composePolicyKey(key)))
+        return Completable.mergeDelayError(Arrays.asList(cache.delete(key), cache.delete(composePolicyKey(key))))
                 .toObservable();
     }
 
-    private static <V, P> Func1<P, Observable<Cached<V, P>>> readValue(
+    private static <V, P> Function<P, Observable<Cached<V, P>>> readValue(
             final String key, final RxPaperBook cache) {
-        return new Func1<P, Observable<Cached<V, P>>>() {
+        return new Function<P, Observable<Cached<V, P>>>() {
             @Override
-            public Observable<Cached<V, P>> call(final P policy) {
+            public Observable<Cached<V, P>> apply(final P policy) {
                 return cache.<V> read(key)
                         .map(RxObservableDiskCache.<V, P> createDiskCached(policy))
                         .toObservable();
@@ -149,16 +153,16 @@ public class RxObservableDiskCache<V, P> {
         };
     }
 
-    private static <V, P> Func1<Throwable, Observable<Cached<V, P>>> handleErrors(
+    private static <V, P> Function<Throwable, Observable<Cached<V, P>>> handleErrors(
             final String key, final RxPaperBook cache) {
-        return new Func1<Throwable, Observable<Cached<V, P>>>() {
+        return new Function<Throwable, Observable<Cached<V, P>>>() {
             @Override
-            public Observable<Cached<V, P>> call(final Throwable throwable) {
+            public Observable<Cached<V, P>> apply(final Throwable throwable) {
                 return RxObservableDiskCache.<Cached<V, P>> deleteValueAndPolicy(key, cache)
                         .flatMap(
-                                new Func1<Cached<V, P>, Observable<Cached<V, P>>>() {
+                                new Function<Cached<V, P>, Observable<Cached<V, P>>>() {
                                     @Override
-                                    public Observable<Cached<V, P>> call(
+                                    public Observable<Cached<V, P>> apply(
                                             Cached<V, P> valuePolicyCached) {
                                         return Observable.error(throwable);
                                     }
@@ -168,21 +172,21 @@ public class RxObservableDiskCache<V, P> {
     }
 
     private static <V, P> Observable<Cached<V, P>> requestFreshValue(
-            Single<V> single, String key, RxPaperBook cache, Func1<V, P> policyCreator) {
+            Single<V> single, String key, RxPaperBook cache, Function<V, P> policyCreator) {
         return single.toObservable()
                 .map(createObservableCached(policyCreator))
                 .flatMap(RxObservableDiskCache.<V, P> toStoreKeyAndValue(key, cache));
     }
 
-    private static <V, P> Func1<Cached<V, P>, Observable<Cached<V, P>>> toStoreKeyAndValue(
+    private static <V, P> Function<Cached<V, P>, Observable<Cached<V, P>>> toStoreKeyAndValue(
             final String key, final RxPaperBook cache) {
-        return new Func1<Cached<V, P>, Observable<Cached<V, P>>>() {
+        return new Function<Cached<V, P>, Observable<Cached<V, P>>>() {
             @Override
-            public Observable<Cached<V, P>> call(final Cached<V, P> ktCached) {
+            public Observable<Cached<V, P>> apply(final Cached<V, P> ktCached) {
                 return Completable
-                        .mergeDelayError(
+                        .mergeDelayError(Arrays.asList(
                                 cache.write(key, ktCached.value),
-                                cache.write(composePolicyKey(key), ktCached.policy))
+                                cache.write(composePolicyKey(key), ktCached.policy)))
                         .andThen(Observable.just(ktCached));
             }
         };
@@ -192,22 +196,22 @@ public class RxObservableDiskCache<V, P> {
         return key + POLICY_APPEND;
     }
 
-    private static <V, P> Func1<V, Cached<V, P>> createDiskCached(
+    private static <V, P> Function<V, Cached<V, P>> createDiskCached(
             final P policy) {
-        return new Func1<V, Cached<V, P>>() {
+        return new Function<V, Cached<V, P>>() {
             @Override
-            public Cached<V, P> call(V value) {
+            public Cached<V, P> apply(V value) {
                 return new Cached<>(value, policy, true);
             }
         };
     }
 
-    private static <V, P> Func1<V, Cached<V, P>> createObservableCached(
-            final Func1<V, P> policyCreator) {
-        return new Func1<V, Cached<V, P>>() {
+    private static <V, P> Function<V, Cached<V, P>> createObservableCached(
+            final Function<V, P> policyCreator) {
+        return new Function<V, Cached<V, P>>() {
             @Override
-            public Cached<V, P> call(V value) {
-                return new Cached<>(value, policyCreator.call(value), false);
+            public Cached<V, P> apply(V value) throws Exception {
+                return new Cached<>(value, policyCreator.apply(value), false);
             }
         };
     }

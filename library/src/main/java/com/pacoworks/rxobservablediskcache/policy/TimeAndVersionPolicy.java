@@ -18,7 +18,9 @@ package com.pacoworks.rxobservablediskcache.policy;
 
 import com.pacoworks.rxobservablediskcache.RxObservableDiskCache;
 
-import rx.functions.Func1;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
+
 
 /**
  * Policy class using timestamping and versioning for invalidation.
@@ -46,10 +48,10 @@ public class TimeAndVersionPolicy {
      * @param version version of the Value
      * @return creation function
      */
-    public static <T> Func1<T, TimeAndVersionPolicy> create(final int version) {
-        return new Func1<T, TimeAndVersionPolicy>() {
+    public static <T> Function<T, TimeAndVersionPolicy> create(final int version) {
+        return new Function<T, TimeAndVersionPolicy>() {
             @Override
-            public TimeAndVersionPolicy call(T t) {
+            public TimeAndVersionPolicy apply(T t) {
                 return new TimeAndVersionPolicy(System.currentTimeMillis(), version);
             }
         };
@@ -61,11 +63,11 @@ public class TimeAndVersionPolicy {
      * @param timestampMillis timestamp in milliseconds
      * @param version version of the Value @return creation function
      */
-    public static <T> Func1<T, TimeAndVersionPolicy> create(final long timestampMillis,
+    public static <T> Function<T, TimeAndVersionPolicy> create(final long timestampMillis,
             final int version) {
-        return new Func1<T, TimeAndVersionPolicy>() {
+        return new Function<T, TimeAndVersionPolicy>() {
             @Override
-            public TimeAndVersionPolicy call(T t) {
+            public TimeAndVersionPolicy apply(T t) {
                 return new TimeAndVersionPolicy(timestampMillis, version);
             }
         };
@@ -78,11 +80,11 @@ public class TimeAndVersionPolicy {
      * @param expectedVersion expected version to pass validation
      * @return validation function
      */
-    public static Func1<TimeAndVersionPolicy, Boolean> validate(final long maxCacheDurationMillis,
+    public static Predicate<TimeAndVersionPolicy> validate(final long maxCacheDurationMillis,
             final int expectedVersion) {
-        return new Func1<TimeAndVersionPolicy, Boolean>() {
+        return new Predicate<TimeAndVersionPolicy>() {
             @Override
-            public Boolean call(TimeAndVersionPolicy myPolicy) {
+            public boolean test(TimeAndVersionPolicy myPolicy) {
                 final boolean isTimeCorrect = System.currentTimeMillis() - myPolicy.timestamp < maxCacheDurationMillis;
                 final boolean isVersionCorrect = myPolicy.version == expectedVersion;
                 return isTimeCorrect && isVersionCorrect;

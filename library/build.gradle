@@ -21,7 +21,7 @@ targetCompatibility = 1.6
 
 android {
     compileSdkVersion 25
-    buildToolsVersion "25.0.0"
+    buildToolsVersion "25.0.2"
 
     defaultConfig {
         minSdkVersion 16
@@ -38,5 +38,5 @@ android {
 }
 
 dependencies {
-    compile 'com.github.pakoito:RxPaper:2.0.0'
+    compile 'com.github.pakoito:RxPaper2:1.0.0'
 }

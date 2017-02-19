@@ -18,7 +18,8 @@ package com.pacoworks.rxobservablediskcache.policy;
 
 import com.pacoworks.rxobservablediskcache.RxObservableDiskCache;
 
-import rx.functions.Func1;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 
 /**
  * Policy class using versioning for invalidation.
@@ -40,10 +41,10 @@ public class VersionPolicy {
      * @param version version of the Value
      * @return creation function
      */
-    public static <T> Func1<T, VersionPolicy> create(final int version) {
-        return new Func1<T, VersionPolicy>() {
+    public static <T> Function<T, VersionPolicy> create(final int version) {
+        return new Function<T, VersionPolicy>() {
             @Override
-            public VersionPolicy call(T t) {
+            public VersionPolicy apply(T t) {
                 return new VersionPolicy(version);
             }
         };
@@ -55,10 +56,10 @@ public class VersionPolicy {
      * @param expectedVersion expected version to pass validation
      * @return validation function
      */
-    public static Func1<VersionPolicy, Boolean> validate(final int expectedVersion) {
-        return new Func1<VersionPolicy, Boolean>() {
+    public static Predicate<VersionPolicy> validate(final int expectedVersion) {
+        return new Predicate<VersionPolicy>() {
             @Override
-            public Boolean call(VersionPolicy myPolicy) {
+            public boolean test(VersionPolicy myPolicy) {
                 return myPolicy.version == expectedVersion;
             }
         };

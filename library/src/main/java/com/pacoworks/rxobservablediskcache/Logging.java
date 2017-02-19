@@ -20,8 +20,8 @@ import android.util.Log;
 
 import java.util.Locale;
 
-import rx.functions.Action0;
-import rx.functions.Action1;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
 
 /**
  * Private class containing logging methods for {@link RxObservableDiskCache}
@@ -35,19 +35,19 @@ class Logging {
         // No instances
     }
 
-    static <V, P> Action1<Cached<V, P>> logCacheHit(final String key) {
-        return new Action1<Cached<V, P>>() {
+    static <V, P> Consumer<Cached<V, P>> logCacheHit(final String key) {
+        return new Consumer<Cached<V, P>>() {
             @Override
-            public void call(Cached<V, P> valuePolicyCached) {
+            public void accept(Cached<V, P> valuePolicyCached) {
                 Log.d(TAG, "Cache hit: " + key);
             }
         };
     }
 
-    static Action1<Throwable> logCacheMiss(final String key) {
-        return new Action1<Throwable>() {
+    static Consumer<Throwable> logCacheMiss(final String key) {
+        return new Consumer<Throwable>() {
             @Override
-            public void call(Throwable t) {
+            public void accept(Throwable t) {
                 Log.e(TAG,
                         String.format(Locale.US, "Cache miss: %s%nCaused by: %s", key,
                                 t.getMessage()));
@@ -55,10 +55,10 @@ class Logging {
         };
     }
 
-    static Action0 logCacheInvalid(final String key) {
-        return new Action0() {
+    static Action logCacheInvalid(final String key) {
+        return new Action() {
             @Override
-            public void call() {
+            public void run() {
                 Log.d(TAG, "Cache invalid: " + key);
             }
         };

@@ -18,7 +18,9 @@ package com.pacoworks.rxobservablediskcache.policy;
 
 import com.pacoworks.rxobservablediskcache.RxObservableDiskCache;
 
-import rx.functions.Func1;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
+
 
 /**
  * Policy class using timestamping for invalidation.
@@ -45,10 +47,10 @@ public class TimePolicy {
      *
      * @return creation function
      */
-    public static <T> Func1<T, TimePolicy> create() {
-        return new Func1<T, TimePolicy>() {
+    public static <T> Function<T, TimePolicy> create() {
+        return new Function<T, TimePolicy>() {
             @Override
-            public TimePolicy call(T t) {
+            public TimePolicy apply(T t) {
                 return new TimePolicy();
             }
         };
@@ -60,10 +62,10 @@ public class TimePolicy {
      * @param timestampMillis timestamp in milliseconds
      * @return creation function
      */
-    public static <T> Func1<T, TimePolicy> create(final long timestampMillis) {
-        return new Func1<T, TimePolicy>() {
+    public static <T> Function<T, TimePolicy> create(final long timestampMillis) {
+        return new Function<T, TimePolicy>() {
             @Override
-            public TimePolicy call(T t) {
+            public TimePolicy apply(T t) {
                 return new TimePolicy(timestampMillis);
             }
         };
@@ -75,10 +77,10 @@ public class TimePolicy {
      * @param maxCacheDurationMillis maximum caching time allowed
      * @return validation function
      */
-    public static Func1<TimePolicy, Boolean> validate(final long maxCacheDurationMillis) {
-        return new Func1<TimePolicy, Boolean>() {
+    public static Predicate<TimePolicy> validate(final long maxCacheDurationMillis) {
+        return new Predicate<TimePolicy>() {
             @Override
-            public Boolean call(TimePolicy myPolicy) {
+            public boolean test(TimePolicy myPolicy) {
                 return System.currentTimeMillis() - myPolicy.timestamp < maxCacheDurationMillis;
             }
         };
