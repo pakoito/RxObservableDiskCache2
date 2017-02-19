@@ -16,9 +16,10 @@
 
 package com.pacoworks.rxobservablediskcache;
 
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
+import android.support.test.rule.ActivityTestRule;
+import android.support.test.runner.AndroidJUnit4;
+
+import com.pacoworks.rxpaper2.RxPaperBook;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -26,14 +27,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import com.pacoworks.rxpaper.RxPaperBook;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 
-import android.support.test.rule.ActivityTestRule;
-import android.support.test.runner.AndroidJUnit4;
+import io.reactivex.Single;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
+import io.reactivex.observers.TestObserver;
 
-import rx.Single;
-import rx.functions.Func1;
-import rx.observers.TestSubscriber;
 
 @RunWith(AndroidJUnit4.class)
 public class RxObservableDiskCacheTest {
@@ -52,19 +54,19 @@ public class RxObservableDiskCacheTest {
         testBook.destroy().subscribe();
     }
 
-    public TestSubscriber initCache() {
+    public TestObserver initCache() {
         final List<Serializable> initialList = Arrays.<Serializable> asList(true, 1, "hello");
-        final TestSubscriber<Cached<List<Serializable>, MyPolicy>> subscriber = TestSubscriber
+        final TestObserver<Cached<List<Serializable>, MyPolicy>> subscriber = TestObserver
                 .create();
         RxObservableDiskCache.transform(Single.just(initialList), KEY, testBook,
-                new Func1<List<Serializable>, MyPolicy>() {
+                new Function<List<Serializable>, MyPolicy>() {
                     @Override
-                    public MyPolicy call(List<Serializable> serializables) {
+                    public MyPolicy apply(List<Serializable> serializables) {
                         return new MyPolicy();
                     }
-                }, new Func1<MyPolicy, Boolean>() {
+                }, new Predicate<MyPolicy>() {
                     @Override
-                    public Boolean call(MyPolicy myPolicy) {
+                    public boolean test(MyPolicy myPolicy) {
                         return true;
                     }
                 }).subscribe(subscriber);
@@ -74,26 +76,26 @@ public class RxObservableDiskCacheTest {
 
     @Test
     public void emptyCache_cacheFail_getObservable() {
-        final TestSubscriber subscriber = initCache();
+        final TestObserver subscriber = initCache();
         /* Assert */
         subscriber.assertNoErrors();
-        subscriber.assertCompleted();
+        subscriber.assertComplete();
         subscriber.assertValueCount(1);
     }
 
     @Test
     public void emptyCache_observableFails_getException() {
-        final TestSubscriber<Cached<Integer, MyPolicy>> subscriber = TestSubscriber.create();
+        final TestObserver<Cached<Integer, MyPolicy>> subscriber = TestObserver.create();
         /* Act */
         RxObservableDiskCache.transform(Single.<Integer> error(new IllegalStateException()), KEY,
-                testBook, new Func1<Integer, MyPolicy>() {
+                testBook, new Function<Integer, MyPolicy>() {
                     @Override
-                    public MyPolicy call(Integer serializables) {
+                    public MyPolicy apply(Integer serializables) {
                         return new MyPolicy();
                     }
-                }, new Func1<MyPolicy, Boolean>() {
+                }, new Predicate<MyPolicy>() {
                     @Override
-                    public Boolean call(MyPolicy myPolicy) {
+                    public boolean test(MyPolicy myPolicy) {
                         return true;
                     }
                 }).subscribe(subscriber);
@@ -107,25 +109,25 @@ public class RxObservableDiskCacheTest {
     public void validCache_cacheHit_getCacheThenGetObservable() {
         initCache();
         final List<Serializable> list = Arrays.<Serializable> asList(true, 1, "hello");
-        final TestSubscriber<Cached<List<Serializable>, MyPolicy>> subscriber = TestSubscriber
+        final TestObserver<Cached<List<Serializable>, MyPolicy>> subscriber = TestObserver
                 .create();
         /* Act */
         RxObservableDiskCache.transform(Single.just(list), KEY, testBook,
-                new Func1<List<Serializable>, MyPolicy>() {
+                new Function<List<Serializable>, MyPolicy>() {
                     @Override
-                    public MyPolicy call(List<Serializable> serializables) {
+                    public MyPolicy apply(List<Serializable> serializables) {
                         return new MyPolicy();
                     }
-                }, new Func1<MyPolicy, Boolean>() {
+                }, new Predicate<MyPolicy>() {
                     @Override
-                    public Boolean call(MyPolicy myPolicy) {
+                    public boolean test(MyPolicy myPolicy) {
                         return true;
                     }
                 }).subscribe(subscriber);
         subscriber.awaitTerminalEvent();
         /* Assert */
         subscriber.assertNoErrors();
-        subscriber.assertCompleted();
+        subscriber.assertComplete();
         subscriber.assertValueCount(2);
     }
 
@@ -133,42 +135,42 @@ public class RxObservableDiskCacheTest {
     public void validCache_cacheMiss_deleteCacheThenGetObservable() {
         initCache();
         final List<Serializable> list = Arrays.<Serializable> asList(true, 1, "hello");
-        final TestSubscriber<Cached<List<Serializable>, MyPolicy>> subscriber = TestSubscriber
+        final TestObserver<Cached<List<Serializable>, MyPolicy>> subscriber = TestObserver
                 .create();
         /* Act */
         RxObservableDiskCache.transform(Single.just(list), KEY, testBook,
-                new Func1<List<Serializable>, MyPolicy>() {
+                new Function<List<Serializable>, MyPolicy>() {
                     @Override
-                    public MyPolicy call(List<Serializable> serializables) {
+                    public MyPolicy apply(List<Serializable> serializables) {
                         return new MyPolicy();
                     }
-                }, new Func1<MyPolicy, Boolean>() {
+                }, new Predicate<MyPolicy>() {
                     @Override
-                    public Boolean call(MyPolicy myPolicy) {
+                    public boolean test(MyPolicy myPolicy) {
                         return false;
                     }
                 }).subscribe(subscriber);
         subscriber.awaitTerminalEvent();
         /* Assert */
         subscriber.assertNoErrors();
-        subscriber.assertCompleted();
+        subscriber.assertComplete();
         subscriber.assertValueCount(1);
-        Assert.assertTrue(testBook.exists(KEY).toBlocking().value());
+        Assert.assertTrue(testBook.exists(KEY).blockingGet());
     }
 
     @Test
     public void validCache_cacheHitAndObservableFails_getCacheThenGetException() {
         initCache();
-        final TestSubscriber<Cached<Integer, MyPolicy>> subscriber = TestSubscriber.create();
+        final TestObserver<Cached<Integer, MyPolicy>> subscriber = TestObserver.create();
         RxObservableDiskCache.transform(Single.<Integer> error(new IllegalStateException()), KEY,
-                testBook, new Func1<Integer, MyPolicy>() {
+                testBook, new Function<Integer, MyPolicy>() {
                     @Override
-                    public MyPolicy call(Integer serializables) {
+                    public MyPolicy apply(Integer serializables) {
                         return new MyPolicy();
                     }
-                }, new Func1<MyPolicy, Boolean>() {
+                }, new Predicate<MyPolicy>() {
                     @Override
-                    public Boolean call(MyPolicy myPolicy) {
+                    public boolean test(MyPolicy myPolicy) {
                         return true;
                     }
                 }).subscribe(subscriber);
@@ -181,16 +183,16 @@ public class RxObservableDiskCacheTest {
     @Test
     public void validCache_cacheMissAndObservableFails_deleteCacheThenGetException() {
         initCache();
-        final TestSubscriber<Cached<Integer, MyPolicy>> subscriber = TestSubscriber.create();
+        final TestObserver<Cached<Integer, MyPolicy>> subscriber = TestObserver.create();
         RxObservableDiskCache.transform(Single.<Integer> error(new IllegalStateException()), KEY,
-                testBook, new Func1<Integer, MyPolicy>() {
+                testBook, new Function<Integer, MyPolicy>() {
                     @Override
-                    public MyPolicy call(Integer serializables) {
+                    public MyPolicy apply(Integer serializables) {
                         return new MyPolicy();
                     }
-                }, new Func1<MyPolicy, Boolean>() {
+                }, new Predicate<MyPolicy>() {
                     @Override
-                    public Boolean call(MyPolicy myPolicy) {
+                    public boolean test(MyPolicy myPolicy) {
                         return false;
                     }
                 }).subscribe(subscriber);
@@ -198,6 +200,6 @@ public class RxObservableDiskCacheTest {
         /* Assert */
         subscriber.assertValueCount(0);
         subscriber.assertError(IllegalStateException.class);
-        Assert.assertFalse(testBook.exists(KEY).toBlocking().value());
+        Assert.assertFalse(testBook.exists(KEY).blockingGet());
     }
 }
