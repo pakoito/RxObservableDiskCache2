@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.pacoworks.rxobservablediskcache.policy;
+package com.pacoworks.rxobservablediskcache2.policy;
 
-import com.pacoworks.rxobservablediskcache.RxObservableDiskCache;
+import com.pacoworks.rxobservablediskcache2.RxObservableDiskCache;
 
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;

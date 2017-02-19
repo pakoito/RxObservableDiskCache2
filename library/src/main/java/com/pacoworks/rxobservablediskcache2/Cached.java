@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.pacoworks.rxobservablediskcache;
+package com.pacoworks.rxobservablediskcache2;
 
 /**
  * Wrapper object for results of {@link RxObservableDiskCache} methods

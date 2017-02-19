@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.pacoworks.rxobservablediskcache;
+package com.pacoworks.rxobservablediskcache2;
 
 import android.support.test.rule.ActivityTestRule;
 import android.support.test.runner.AndroidJUnit4;
