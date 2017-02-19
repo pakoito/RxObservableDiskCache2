@@ -146,7 +146,7 @@ For any error report please send an issue with a full stack trace and reproducti
 
 ##License
 
-Copyright (c) pakoito 2016
+Copyright (c) pakoito 2017
 
 The Apache Software License, Version 2.0
 
